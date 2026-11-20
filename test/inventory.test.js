@@ -101,6 +101,33 @@ describe('inventory', () => {
       assert.equal(store.events.size, eventsBefore);
     });
 
+    it('creates a ticket tier with zero sold and the correct remaining capacity', () => {
+      assert.ok(tier.id);
+      assert.equal(tier.name, 'General');
+      assert.equal(tier.priceCents, 2500);
+      assert.equal(tier.capacity, 3);
+      assert.equal(tier.sold, 0);
+      assert.equal(seatsLeft(tier), 3);
+      assert.ok(event.tierIds.includes(tier.id));
+      assert.equal(store.tiers.get(tier.id), tier);
+    });
+
+    it('rejects adding a tier to an unknown event', () => {
+      const tiersBefore = store.tiers.size;
+
+      throwsCode(
+        () =>
+          addTier(store, 'unknown-event-id', {
+            name: 'VIP',
+            priceCents: 5000,
+            capacity: 10,
+          }),
+        'NOT_FOUND',
+      );
+
+      assert.equal(store.tiers.size, tiersBefore);
+    });
+
     it('rejects invalid ticket prices and capacities', () => {
       throwsCode(
         () =>
@@ -150,6 +177,10 @@ describe('inventory', () => {
   });
 
   describe('booking', () => {
+    beforeEach(() => {
+      publishEvent(store, event.id);
+    });
+
     it('reduces the seats left and prices in whole cents', () => {
       const booking = bookTickets(store, tier.id, 'ada', 2);
 
@@ -161,9 +192,14 @@ describe('inventory', () => {
     it('rejects a booking bigger than the seats left, and changes nothing', () => {
       bookTickets(store, tier.id, 'ada', 2);
 
+      const bookingsBefore = store.bookings.size;
+      const referencesBefore = store.bookingsByReference.size;
+
       throwsCode(() => bookTickets(store, tier.id, 'bayo', 2), 'SOLD_OUT');
 
       assert.equal(seatsLeft(tier), 1);
+      assert.equal(store.bookings.size, bookingsBefore);
+      assert.equal(store.bookingsByReference.size, referencesBefore);
     });
 
     it('lets the last ticket be booked, then reports sold out', () => {
@@ -193,6 +229,10 @@ describe('inventory', () => {
   });
 
   describe('cancelling', () => {
+    beforeEach(() => {
+      publishEvent(store, event.id);
+    });
+
     it('gives the seats back', () => {
       const booking = bookTickets(store, tier.id, 'ada', 2);
 
@@ -217,6 +257,10 @@ describe('inventory', () => {
   });
 
   describe('waitlist', () => {
+    beforeEach(() => {
+      publishEvent(store, event.id);
+    });
+
     it('only opens when the tier cannot satisfy the request', () => {
       throwsCode(
         () => joinWaitlist(store, tier.id, 'ada', 1),

@@ -18,7 +18,10 @@ import {
 import { DomainError } from '../src/domain/errors.js';
 
 const throwsCode = (fn, code) =>
-  assert.throws(fn, (error) => error instanceof DomainError && error.code === code);
+  assert.throws(
+    fn,
+    (error) => error instanceof DomainError && error.code === code,
+  );
 
 describe('inventory', () => {
   let store;
@@ -27,12 +30,14 @@ describe('inventory', () => {
 
   beforeEach(() => {
     store = createStore();
+
     event = createEvent(store, {
       title: 'Test Event',
       city: 'Lagos',
       startsAt: '2026-12-05T17:00:00Z',
       organizerId: 'org-1',
     });
+
     tier = addTier(store, event.id, {
       name: 'General',
       priceCents: 2500,
@@ -45,40 +50,75 @@ describe('inventory', () => {
       assert.equal(event.status, 'draft');
     });
 
-    it('rejects a missing title, a bad date and bad numbers', () => {
+    it('creates an event with a unique ID and saves it in the store', () => {
+      const anotherEvent = createEvent(store, {
+        title: 'Lagos Music Festival',
+        city: 'Lagos',
+        startsAt: '2026-12-10T18:00:00Z',
+        organizerId: 'org-1',
+      });
+
+      assert.ok(event.id);
+      assert.ok(anotherEvent.id);
+      assert.notEqual(event.id, anotherEvent.id);
+      assert.equal(store.events.get(anotherEvent.id), anotherEvent);
+      assert.equal(anotherEvent.status, 'draft');
+    });
+
+    it('rejects a missing title, missing city, and invalid date', () => {
+      const eventsBefore = store.events.size;
+
       throwsCode(
-        () => createEvent(store, {
-          title: ' ',
-          city: 'x',
-          startsAt: '2026-12-05',
-        }),
+        () =>
+          createEvent(store, {
+            title: ' ',
+            city: 'Lagos',
+            startsAt: '2026-12-05T17:00:00Z',
+          }),
         'VALIDATION',
       );
 
       throwsCode(
-        () => createEvent(store, {
-          title: 'x',
-          city: 'x',
-          startsAt: 'nope',
-        }),
+        () =>
+          createEvent(store, {
+            title: 'Lagos Music Festival',
+            city: ' ',
+            startsAt: '2026-12-05T17:00:00Z',
+          }),
         'VALIDATION',
       );
 
       throwsCode(
-        () => addTier(store, event.id, {
-          name: 'x',
-          priceCents: 19.99,
-          capacity: 5,
-        }),
+        () =>
+          createEvent(store, {
+            title: 'Lagos Music Festival',
+            city: 'Lagos',
+            startsAt: 'nope',
+          }),
+        'VALIDATION',
+      );
+
+      assert.equal(store.events.size, eventsBefore);
+    });
+
+    it('rejects invalid ticket prices and capacities', () => {
+      throwsCode(
+        () =>
+          addTier(store, event.id, {
+            name: 'VIP',
+            priceCents: 19.99,
+            capacity: 5,
+          }),
         'VALIDATION',
       );
 
       throwsCode(
-        () => addTier(store, event.id, {
-          name: 'x',
-          priceCents: 100,
-          capacity: 0,
-        }),
+        () =>
+          addTier(store, event.id, {
+            name: 'VIP',
+            priceCents: 100,
+            capacity: 0,
+          }),
         'VALIDATION',
       );
     });
@@ -136,7 +176,10 @@ describe('inventory', () => {
 
     it('validates the quantity', () => {
       for (const bad of [0, -1, 1.5, 11, '2', undefined]) {
-        throwsCode(() => bookTickets(store, tier.id, 'ada', bad), 'VALIDATION');
+        throwsCode(
+          () => bookTickets(store, tier.id, 'ada', bad),
+          'VALIDATION',
+        );
       }
     });
 
@@ -164,7 +207,10 @@ describe('inventory', () => {
 
       cancelBooking(store, booking.reference);
 
-      throwsCode(() => cancelBooking(store, booking.reference), 'INVALID_STATE');
+      throwsCode(
+        () => cancelBooking(store, booking.reference),
+        'INVALID_STATE',
+      );
 
       assert.equal(seatsLeft(tier), 3);
     });
@@ -172,12 +218,20 @@ describe('inventory', () => {
 
   describe('waitlist', () => {
     it('only opens when the tier cannot satisfy the request', () => {
-      throwsCode(() => joinWaitlist(store, tier.id, 'ada', 1), 'NOT_SOLD_OUT');
+      throwsCode(
+        () => joinWaitlist(store, tier.id, 'ada', 1),
+        'NOT_SOLD_OUT',
+      );
 
       bookTickets(store, tier.id, 'bayo', 3);
 
-      assert.deepEqual(joinWaitlist(store, tier.id, 'ada', 1), { position: 1 });
-      assert.deepEqual(joinWaitlist(store, tier.id, 'chidi', 1), { position: 2 });
+      assert.deepEqual(joinWaitlist(store, tier.id, 'ada', 1), {
+        position: 1,
+      });
+
+      assert.deepEqual(joinWaitlist(store, tier.id, 'chidi', 1), {
+        position: 2,
+      });
     });
 
     it('offers seats first come, first served', () => {

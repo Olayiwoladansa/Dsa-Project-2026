@@ -1,6 +1,6 @@
 # AI log
 
-Every time you give an AI tool a significant prompt, add an entry. Three lines each.
+Every time you give an AI tool a significant prompt, add an entry. Three lines each.  
 "Nothing was wrong" is allowed, but it is rarely true. Your instructor will read this.
 
 ## Build 1
@@ -12,15 +12,15 @@ Every time you give an AI tool a significant prompt, add an entry. Three lines e
 
 ## Build 2
 
-### Prompt 1: Build 2 prompt (docs/build-2.md)
-- **What I asked:**
-- **What came back:**
-- **What was wrong (or "nothing"):**
+### Prompt 1: Build 2 domain features and implementation
+- **What I asked:** Help me complete Build 2, including event creation, ticket tiers, publishing and unpublishing events, event searching, filtering, sorting with merge sort, and automated tests.
+- **What came back:** Guidance on the domain functions, acceptance criteria, merge sort, event searching, validation, and test coverage.
+- **What was wrong (or "nothing"):** The first unpublishing test failed because the `unpublishEvent` function had not been correctly added and exported. This was corrected, and the tests passed.
 
-### Prompt 2:
-- **What I asked:**
-- **What came back:**
-- **What was wrong (or "nothing"):**
+### Prompt 2: Improve Build 2 acceptance test coverage
+- **What I asked:** Review and correct the complete test files so that the Build 2 acceptance criteria and important edge cases are covered without wasting time making scattered code changes.
+- **What came back:** Complete revised versions of `test/inventory.test.js` and `test/eventSearch.test.js`, with additional validation, filtering, sorting, and ticket-tier tests.
+- **What was wrong (or "nothing"):** The original tests did not cover all required cases. Additional tests were added, and the final test run passed all 54 tests with zero failures.
 
 ## Build 3
 

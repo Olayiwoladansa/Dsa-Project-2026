@@ -1,12 +1,17 @@
+
 import { createReadStream } from 'node:fs';
 import { realpath, stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DomainError } from '../domain/errors.js';
+import { createApiRouter } from './apiRoutes.js';
 import { Router } from './router.js';
 
-const DEFAULT_PUBLIC_DIRECTORY = fileURLToPath(new URL('../../public/', import.meta.url));
+const DEFAULT_PUBLIC_DIRECTORY = fileURLToPath(
+  new URL('../../public/', import.meta.url)
+);
+
 const CONTENT_TYPES = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
@@ -22,49 +27,115 @@ const CONTENT_TYPES = {
 };
 
 function sendJson(response, status, body) {
-  response.writeHead(status, { 'content-type': 'application/json; charset=utf-8' });
+  response.writeHead(status, {
+    'content-type': 'application/json; charset=utf-8',
+  });
+
   response.end(JSON.stringify(body));
 }
 
 function sendError(response, status, code, message) {
-  sendJson(response, status, { error: { code, message } });
+  sendJson(response, status, {
+    error: {
+      code,
+      message,
+    },
+  });
+}
+
+function statusForError(error) {
+  const statusCodes = {
+    INVALID_JSON: 400,
+    INVALID_PATH: 400,
+    VALIDATION: 400,
+    FORBIDDEN: 403,
+    NOT_FOUND: 404,
+    SOLD_OUT: 409,
+    INVALID_STATE: 409,
+    INVALID_TRANSITION: 409,
+    PAYMENT_DECLINED: 409,
+    NOT_SOLD_OUT: 409,
+  };
+
+  return statusCodes[error.code] ?? 400;
 }
 
 async function readJsonBody(request) {
-  const contentType = request.headers['content-type']?.split(';', 1)[0].trim().toLowerCase();
-  if (contentType !== 'application/json') return undefined;
+  const contentType = request.headers['content-type']
+    ?.split(';', 1)[0]
+    .trim()
+    .toLowerCase();
+
+  if (contentType !== 'application/json') {
+    return undefined;
+  }
 
   let text = '';
-  for await (const chunk of request) text += chunk;
-  if (!text) return undefined;
+
+  for await (const chunk of request) {
+    text += chunk;
+  }
+
+  if (!text) {
+    return undefined;
+  }
 
   try {
     return JSON.parse(text);
   } catch {
-    throw new DomainError('INVALID_JSON', 'Request body must contain valid JSON');
+    throw new DomainError(
+      'INVALID_JSON',
+      'Request body must contain valid JSON'
+    );
   }
 }
 
-async function servePublicFile(response, pathname, publicDirectory, method) {
+async function servePublicFile(
+  response,
+  pathname,
+  publicDirectory,
+  method
+) {
   let decodedPath;
+
   try {
     decodedPath = decodeURIComponent(pathname);
   } catch {
-    sendError(response, 400, 'INVALID_PATH', 'The request path is invalid');
+    sendError(
+      response,
+      400,
+      'INVALID_PATH',
+      'The request path is invalid'
+    );
     return;
   }
 
   const root = resolve(publicDirectory);
-  const requestedPath = resolve(root, `.${decodedPath === '/' ? '/index.html' : decodedPath}`);
+
+  const requestedPath = resolve(
+    root,
+    `.${decodedPath === '/' ? '/index.html' : decodedPath}`
+  );
+
   const relativePath = relative(root, requestedPath);
-  if (isAbsolute(relativePath) || relativePath === '..' || relativePath.startsWith(`..${sep}`)) {
+
+  if (
+    isAbsolute(relativePath) ||
+    relativePath === '..' ||
+    relativePath.startsWith(`..${sep}`)
+  ) {
     sendError(response, 404, 'NOT_FOUND', 'File not found');
     return;
   }
 
   try {
-    const [realRoot, realFile] = await Promise.all([realpath(root), realpath(requestedPath)]);
+    const [realRoot, realFile] = await Promise.all([
+      realpath(root),
+      realpath(requestedPath),
+    ]);
+
     const actualRelativePath = relative(realRoot, realFile);
+
     if (
       isAbsolute(actualRelativePath) ||
       actualRelativePath === '..' ||
@@ -75,64 +146,168 @@ async function servePublicFile(response, pathname, publicDirectory, method) {
     }
 
     const fileStats = await stat(realFile);
+
     if (!fileStats.isFile()) {
       sendError(response, 404, 'NOT_FOUND', 'File not found');
       return;
     }
+
     response.writeHead(200, {
       'content-length': fileStats.size,
-      'content-type': CONTENT_TYPES[extname(realFile).toLowerCase()] ?? 'application/octet-stream',
+      'content-type':
+        CONTENT_TYPES[extname(realFile).toLowerCase()] ??
+        'application/octet-stream',
     });
+
     if (method === 'HEAD') {
       response.end();
       return;
     }
+
     const stream = createReadStream(realFile);
+
     stream.on('error', () => {
-      if (response.headersSent) response.destroy();
-      else sendError(response, 500, 'INTERNAL_ERROR', 'An unexpected error occurred');
+      if (response.headersSent) {
+        response.destroy();
+      } else {
+        sendError(
+          response,
+          500,
+          'INTERNAL_ERROR',
+          'An unexpected error occurred'
+        );
+      }
     });
+
     stream.pipe(response);
   } catch (error) {
     if (error.code === 'ENOENT' || error.code === 'ENOTDIR') {
       sendError(response, 404, 'NOT_FOUND', 'File not found');
       return;
     }
+
     throw error;
   }
 }
 
-export function createAppServer({ router = new Router(), publicDirectory = DEFAULT_PUBLIC_DIRECTORY } = {}) {
-  if (!router.match('GET', '/health')) {
-    router.get('/health', () => ({ status: 200, body: { status: 'ok' } }));
+export function createAppServer({
+  router,
+  repository,
+  paymentGateway,
+  publicDirectory = DEFAULT_PUBLIC_DIRECTORY,
+} = {}) {
+  // Pass the supplied repository and payment gateway into the API.
+  const apiRouter = createApiRouter({
+    repository,
+    paymentGateway,
+  });
+
+  const appRouter = router ?? new Router();
+
+  // Register all API routes, including event unpublishing.
+  const apiRoutes = [
+    ['POST', '/api/events'],
+    ['POST', '/api/events/:id/tiers'],
+    ['POST', '/api/events/:id/publish'],
+    ['POST', '/api/events/:id/unpublish'],
+    ['GET', '/api/events'],
+    ['POST', '/api/bookings'],
+    ['POST', '/api/bookings/:reference/pay'],
+    ['POST', '/api/bookings/:reference/cancel'],
+  ];
+
+  for (const [method, path] of apiRoutes) {
+    if (!appRouter.match(method, path)) {
+      const match = apiRouter.match(method, path);
+
+      if (match) {
+        appRouter.add(method, path, match.handler);
+      }
+    }
+  }
+
+  if (!appRouter.match('GET', '/health')) {
+    appRouter.get('/health', () => ({
+      status: 200,
+      body: {
+        status: 'ok',
+      },
+    }));
   }
 
   return createServer(async (request, response) => {
     try {
       const url = new URL(request.url, 'http://localhost');
-      const route = router.match(request.method ?? 'GET', url.pathname);
+
+      const route = appRouter.match(
+        request.method ?? 'GET',
+        url.pathname
+      );
+
       const body = await readJsonBody(request);
 
       if (route) {
-        const result = await route.handler({ request, params: route.params, body });
-        sendJson(response, result?.status ?? 200, result?.body ?? result ?? null);
-      } else if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
-        sendError(response, 404, 'NOT_FOUND', 'API route not found');
-      } else if (request.method === 'GET' || request.method === 'HEAD') {
-        await servePublicFile(response, url.pathname, publicDirectory, request.method);
+        const result = await route.handler({
+          request,
+          params: route.params,
+          body,
+        });
+
+        sendJson(
+          response,
+          result?.status ?? 200,
+          result?.body ?? result ?? null
+        );
+      } else if (
+        url.pathname === '/api' ||
+        url.pathname.startsWith('/api/')
+      ) {
+        sendError(
+          response,
+          404,
+          'NOT_FOUND',
+          'API route not found'
+        );
+      } else if (
+        request.method === 'GET' ||
+        request.method === 'HEAD'
+      ) {
+        await servePublicFile(
+          response,
+          url.pathname,
+          publicDirectory,
+          request.method
+        );
       } else {
-        sendError(response, 404, 'NOT_FOUND', 'Route not found');
+        sendError(
+          response,
+          404,
+          'NOT_FOUND',
+          'Route not found'
+        );
       }
     } catch (error) {
       if (response.headersSent) {
         response.destroy(error);
         return;
       }
+
       if (error instanceof DomainError) {
-        sendError(response, 400, error.code, error.message);
+        sendError(
+          response,
+          statusForError(error),
+          error.code,
+          error.message
+        );
         return;
       }
-      sendError(response, 500, 'INTERNAL_ERROR', 'An unexpected error occurred');
+
+      sendError(
+        response,
+        500,
+        'INTERNAL_ERROR',
+        'An unexpected error occurred'
+      );
     }
   });
 }

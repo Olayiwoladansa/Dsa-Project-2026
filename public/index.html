@@ -1,14 +1,78 @@
+
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Browse events and book your tickets."
+    >
     <title>Event Ticketing</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <script type="module" src="/js/pages/home.js"></script>
   </head>
   <body>
-    <main>
+    <header>
       <h1>Event Ticketing</h1>
-      <p>The Build 3 server is running.</p>
+      <p>Find events and book your tickets.</p>
+    </header>
+
+    <main>
+      <section aria-labelledby="browse-heading">
+        <h2 id="browse-heading">Browse events</h2>
+
+        <form id="filter-form">
+          <label for="search">Search events</label>
+          <input
+            id="search"
+            name="search"
+            type="search"
+            placeholder="Event name or venue"
+          >
+
+          <label for="city">City</label>
+          <select id="city" name="city">
+            <option value="">All cities</option>
+            <option value="Lagos">Lagos</option>
+            <option value="Abuja">Abuja</option>
+            <option value="Ibadan">Ibadan</option>
+          </select>
+
+          <label for="max-price">Maximum ticket price (₦)</label>
+          <input
+            id="max-price"
+            name="maxPrice"
+            type="number"
+            min="0"
+            placeholder="Any price"
+          >
+
+          <label for="sort">Sort events</label>
+          <select id="sort" name="sort">
+            <option value="date">Date</option>
+            <option value="price">Price</option>
+            <option value="availability">Availability</option>
+          </select>
+<label>
+  <input
+    id="only-available"
+    name="onlyAvailable"
+    type="checkbox"
+    value="true"
+  >
+  Show only events with available seats
+</label>
+          <button type="submit">Apply filters</button>
+          <button type="reset">Clear filters</button>
+        </form>
+      </section>
+
+      <section aria-labelledby="events-heading">
+        <h2 id="events-heading">Available events</h2>
+        <p id="event-message" role="status" aria-live="polite"></p>
+        <div id="event-list" class="event-list"></div>
+      </section>
     </main>
   </body>
 </html>

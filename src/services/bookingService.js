@@ -49,21 +49,48 @@ export function createBookingService(repository, paymentGateway) {
         throw new DomainError('INVALID_STATE', 'Event is not published');
       }
 
-      const seatsLeft = tier.capacity - tier.sold;
-
-      if (seatsLeft < quantity) {
-        const message = seatsLeft === 0
-          ? `${tier.name} is sold out`
-          : `Only ${seatsLeft} ticket(s) left in ${tier.name}`;
-
-        throw new DomainError('SOLD_OUT', message, { seatsLeft });
-      }
-
       let reference;
 
       do {
         reference = referenceCode();
       } while (await repository.getBookingByReference(reference));
+
+      // SQLite repositories reserve seats atomically.
+      // Memory repositories retain the original behaviour for existing tests.
+      let reservedTier;
+
+      if (typeof repository.reserveSeats === 'function') {
+        reservedTier = await repository.reserveSeats(tierId, quantity);
+
+        if (!reservedTier) {
+          const latestTier = await repository.getTier(tierId);
+
+          if (!latestTier) {
+            throw new DomainError('NOT_FOUND', 'Ticket tier not found');
+          }
+
+          const seatsLeft = latestTier.capacity - latestTier.sold;
+
+          const message = seatsLeft === 0
+            ? `${latestTier.name} is sold out`
+            : `Only ${seatsLeft} ticket(s) left in ${latestTier.name}`;
+
+          throw new DomainError('SOLD_OUT', message, { seatsLeft });
+        }
+      } else {
+        const seatsLeft = tier.capacity - tier.sold;
+
+        if (seatsLeft < quantity) {
+          const message = seatsLeft === 0
+            ? `${tier.name} is sold out`
+            : `Only ${seatsLeft} ticket(s) left in ${tier.name}`;
+
+          throw new DomainError('SOLD_OUT', message, { seatsLeft });
+        }
+
+        tier.sold += quantity;
+        await repository.saveTier(tier);
+      }
 
       const booking = {
         id: newId(),
@@ -76,9 +103,6 @@ export function createBookingService(repository, paymentGateway) {
         createdAt: new Date().toISOString(),
       };
 
-      tier.sold += quantity;
-
-      await repository.saveTier(tier);
       await repository.saveBooking(booking);
 
       return booking;
@@ -158,6 +182,3 @@ export function createBookingService(repository, paymentGateway) {
     },
   };
 }
-
-
-

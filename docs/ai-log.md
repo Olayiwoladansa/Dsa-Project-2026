@@ -51,3 +51,15 @@ Every time you give an AI tool a significant prompt, add an entry. Three lines e
 - **What I asked:** Run the complete project tests, original demo, and lookup benchmark to check that Build 4 changes did not break earlier functionality.
 - **What came back:** The complete test suite passed 62 tests with zero failures. The original demo passed, confirming booking capacity, cancellation, reference lookup, and FIFO waitlist behaviour.
 - **What was wrong (or "nothing"):** The benchmark was run with 100,000 and then 200,000 bookings. `Array.find()` took longer as the dataset doubled, while `Map.get()` remained very fast. The benchmark was restored to its original 100,000-booking setting.
+
+## Build 5
+
+### Prompt 1: SQLite migration and overselling reproduction
+- **What I asked:** Help me migrate the application from in-memory storage to SQLite, create the database schema and repository, seed sample data, and demonstrate the last-ticket overselling problem with 50 simultaneous booking attempts.
+- **What came back:** SQLite connection and schema, parameterised repository queries, seed script, persistent server storage, and an overselling demonstration script.
+- **What was wrong (or "nothing"):** The first implementation allowed all 50 booking requests to succeed even though the ticket capacity was 1. This reproduced the race condition and confirmed the need for a database-level fix.
+
+### Prompt 2: Atomic overselling fix and regression test
+- **What I asked:** Fix overselling using an atomic SQLite update, then add an automated test proving that only one of 50 attendees can book the last available ticket.
+- **What came back:** An atomic conditional seat-reservation update, changed-row checking, updated booking service, and `test/oversell.test.js`.
+- **What was wrong (or "nothing"):** The original read-then-save approach was unsafe under concurrent requests. After the database-level fix, the demonstration and automated test both confirmed 1 successful booking and 49 `SOLD_OUT` responses. All 63 project tests passed.

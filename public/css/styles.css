@@ -1,0 +1,115 @@
+
+:root {
+  font-family: Arial, sans-serif;
+  color: #202938;
+  background: #f4f6f9;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  line-height: 1.6;
+}
+
+header {
+  background: #172554;
+  color: white;
+  padding: 24px;
+}
+
+header h1 {
+  margin: 0;
+}
+
+main {
+  width: min(100% - 32px, 1000px);
+  margin: 32px auto;
+}
+
+section,
+.event-card,
+.checkout {
+  background: white;
+  padding: 20px;
+  margin-bottom: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 6%);
+}
+
+.event-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+label {
+  display: block;
+  margin: 12px 0 4px;
+  font-weight: 600;
+}
+
+input,
+select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font: inherit;
+}
+
+button,
+.button {
+  display: inline-block;
+  padding: 10px 16px;
+  margin-top: 12px;
+  border: 0;
+  border-radius: 6px;
+  background: #1d4ed8;
+  color: white;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+button:hover,
+.button:hover {
+  background: #1e40af;
+}
+
+button:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+.sold-out {
+  color: #b91c1c;
+  font-weight: bold;
+}
+
+.error {
+  color: #b91c1c;
+  font-weight: bold;
+}
+
+.success {
+  color: #15803d;
+  font-weight: bold;
+}
+
+.muted {
+  color: #64748b;
+}
+
+@media (max-width: 600px) {
+  header {
+    padding: 18px;
+  }
+
+  main {
+    margin: 20px auto;
+  }
+}

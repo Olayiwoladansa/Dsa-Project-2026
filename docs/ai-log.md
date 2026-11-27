@@ -63,3 +63,10 @@ Every time you give an AI tool a significant prompt, add an entry. Three lines e
 - **What I asked:** Fix overselling using an atomic SQLite update, then add an automated test proving that only one of 50 attendees can book the last available ticket.
 - **What came back:** An atomic conditional seat-reservation update, changed-row checking, updated booking service, and `test/oversell.test.js`.
 - **What was wrong (or "nothing"):** The original read-then-save approach was unsafe under concurrent requests. After the database-level fix, the demonstration and automated test both confirmed 1 successful booking and 49 `SOLD_OUT` responses. All 63 project tests passed.
+
+## Build 6
+
+### Prompt 1: Browser frontend with mock data
+- **What I asked:** Help me build the browser-based event ticketing experience using HTML, CSS, JavaScript ES modules, and mock data. It needed event browsing, search, filtering, sorting, ticket selection, a checkout countdown, and mock payment.
+- **What came back:** A homepage, event details and checkout page, reusable DOM helper, mock API, sample events and ticket tiers, responsive styling, and automated frontend API tests.
+- **What was wrong (or "nothing"):** The initial homepage did not include the option to show only events with available seats. A checkbox and filter logic were added. Manual browser checks confirmed sold-out tiers were disabled, declined payments could be retried, and successful payments confirmed bookings. All 67 project tests passed.

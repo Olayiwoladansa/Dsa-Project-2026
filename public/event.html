@@ -1,0 +1,72 @@
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="View event details and book tickets."
+    >
+    <title>Event Details | Event Ticketing</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <script type="module" src="/js/pages/event.js"></script>
+  </head>
+  <body>
+    <header>
+      <h1>Event Ticketing</h1>
+      <p>Event details and ticket booking</p>
+    </header>
+
+    <main>
+      <p><a href="/">← Back to all events</a></p>
+
+      <section id="event-details" aria-live="polite">
+        <p id="event-message" role="status">
+          Loading event details...
+        </p>
+      </section>
+
+      <section id="ticket-section" aria-labelledby="tickets-heading">
+        <h2 id="tickets-heading">Choose your tickets</h2>
+        <div id="ticket-list"></div>
+      </section>
+
+      <section
+        id="checkout-section"
+        class="checkout"
+        aria-labelledby="checkout-heading"
+        hidden
+      >
+        <h2 id="checkout-heading">Checkout</h2>
+        <div id="checkout-details"></div>
+
+        <p>
+          Time remaining:
+          <strong id="countdown" aria-live="off">10:00</strong>
+        </p>
+
+        <form id="payment-form">
+          <label for="card-number">Mock card number</label>
+          <input
+            id="card-number"
+            name="cardNumber"
+            type="text"
+            autocomplete="off"
+            required
+          >
+
+          <p class="muted">
+            This is a simulated payment. Do not enter real card details.
+          </p>
+
+          <button id="pay-button" type="submit">
+            Pay now
+          </button>
+        </form>
+
+        <p id="payment-message" role="alert" aria-live="assertive"></p>
+      </section>
+    </main>
+  </body>
+</html>
